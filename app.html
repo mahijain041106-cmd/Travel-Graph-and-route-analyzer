@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SmartRouteX</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f1a; --panel: #111827; --border: #1e2d40;
+      --accent: #00d4ff; --accent2: #7c3aed; --green: #10b981;
+      --red: #ef4444; --text: #e2e8f0; --muted: #64748b;
+      --font-head: 'Syne', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-head); min-height: 100vh; }
+    .hidden { display: none !important; }
+
+    /* ── LOGIN PAGE ── */
+    #login-view {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: radial-gradient(ellipse at 20% 20%, rgba(0,212,255,.08), transparent 50%),
+                  radial-gradient(ellipse at 80% 80%, rgba(124,58,237,.1), transparent 50%),
+                  var(--bg);
+    }
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 32px;
+    }
+    .login-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.5rem; font-weight: 800; margin-bottom: 8px;
+    }
+    .login-logo span { color: var(--accent); }
+    .login-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 28px; }
+    .login-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .login-tab {
+      flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--muted); cursor: pointer; font-weight: 600;
+      font-family: var(--font-head); font-size: 0.85rem;
+    }
+    .login-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,.08); }
+    label { display: block; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .field { margin-bottom: 16px; }
+    .field input {
+      width: 100%; padding: 12px 14px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      font-family: var(--font-head); font-size: 0.9rem; outline: none;
+    }
+    .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,.12); }
+    .btn {
+      width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer;
+      font-family: var(--font-head); font-size: 0.875rem; font-weight: 700; transition: all .2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #0090cc); color: #000; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,212,255,.3); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .auth-msg { margin-top: 14px; font-size: 0.8rem; font-family: var(--font-mono); min-height: 1.2em; }
+    .auth-msg.err { color: var(--red); }
+    .auth-msg.ok { color: var(--green); }
+
+    /* ── APP HEADER ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px; height: 58px; background: var(--panel);
+      border-bottom: 1px solid var(--border); z-index: 1000;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 800; }
+    .logo span { color: var(--accent); }
+    .user-bar { display: flex; align-items: center; gap: 12px; font-size: 0.8rem; }
+    .user-email { font-family: var(--font-mono); color: var(--accent); font-size: 0.75rem; }
+    .btn-logout {
+      padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); cursor: pointer; font-size: 0.75rem;
+    }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+    .app-body { display: flex; height: calc(100vh - 58px); }
+    .sidebar { width: 360px; background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+    .sidebar-section { padding: 18px; border-bottom: 1px solid var(--border); }
+    .section-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+    .input-group { position: relative; margin-bottom: 10px; }
+    .input-dot { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; border-radius: 50%; }
+    .input-dot.src { background: var(--green); }
+    .input-dot.dest { background: var(--red); }
+    .input-group input {
+      width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 11px 14px 11px 36px; color: var(--text); font-family: var(--font-head); font-size: 0.875rem; outline: none;
+    }
+    .input-connector { width: 1px; height: 10px; background: var(--border); margin: 2px 0 2px 18px; }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text); margin-top: 8px; font-size: 0.8rem; }
+    .algo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .algo-btn {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px;
+      text-align: center; cursor: pointer; color: var(--muted); font-size: 0.75rem; font-weight: 600;
+    }
+    .algo-btn.selected { border-color: var(--accent2); color: var(--accent2); background: rgba(124,58,237,.1); }
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .stat-val { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+    .stat-lbl { font-size: 0.65rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; }
+    .trip-list { max-height: 160px; overflow-y: auto; font-size: 0.78rem; }
+    .trip-item { padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+    .trip-item strong { color: var(--accent); }
+    .log-area { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); line-height: 1.8; max-height: 120px; overflow-y: auto; }
+    .log-line .ts { color: var(--accent2); }
+    .log-line.ok .msg { color: var(--green); }
+    .log-line.err .msg { color: var(--red); }
+    .log-line.info .msg { color: var(--accent); }
+    .map-wrapper { flex: 1; position: relative; }
+    #map { height: 100%; width: 100%; }
+    .leaflet-routing-container { display: none !important; }
+    #map-overlay { position: absolute; inset: 0; background: rgba(11,15,26,.7); display: none; place-items: center; z-index: 9999; }
+    #map-overlay.show { display: grid; }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ── CHATBOT ── */
+    .chat-fab {
+      position: fixed; bottom: 24px; right: 24px; z-index: 10001;
+      width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
+      background: linear-gradient(135deg, var(--accent2), #9d4edd);
+      color: #fff; font-size: 1.4rem; box-shadow: 0 8px 24px rgba(124,58,237,.45);
+      transition: transform .2s;
+    }
+    .chat-fab:hover { transform: scale(1.05); }
+    .chat-panel {
+      position: fixed; bottom: 92px; right: 24px; z-index: 10000;
+      width: 340px; max-width: calc(100vw - 32px); height: 440px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 16px 48px rgba(0,0,0,.5);
+      transform: scale(0.9) translateY(12px); opacity: 0; pointer-events: none;
+      transition: transform .2s, opacity .2s;
+    }
+    .chat-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: auto; }
+    .chat-head {
+      padding: 14px 16px; background: rgba(124,58,237,.2);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .chat-head h3 { font-size: 0.9rem; font-weight: 700; }
+    .chat-head p { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+    .chat-mode-tabs { display: flex; gap: 6px; margin-top: 10px; }
+    .chat-mode-tab {
+      flex: 1; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--muted); cursor: pointer; font-size: 0.7rem; font-weight: 600;
+    }
+    .chat-mode-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,.1); }
+    .chat-mode-tab.ai-active { border-color: var(--accent2); color: var(--accent2); background: rgba(124,58,237,.15); }
+    .chat-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; }
+    .chat-msg.bot.ai { border-color: rgba(124,58,237,.4); background: rgba(124,58,237,.08); }
+    .chat-msg.typing { color: var(--muted); font-style: italic; }
+    .chat-provider { font-size: 0.6rem; color: var(--muted); margin-top: 4px; font-family: var(--font-mono); }
+    .chat-chips.hidden { display: none; }
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .chat-msg {
+      max-width: 88%; padding: 10px 12px; border-radius: 12px;
+      font-size: 0.8rem; line-height: 1.45; white-space: pre-wrap;
+    }
+    .chat-msg.bot {
+      align-self: flex-start; background: var(--bg);
+      border: 1px solid var(--border); color: var(--text);
+    }
+    .chat-msg.user {
+      align-self: flex-end; background: rgba(0,212,255,.15);
+      border: 1px solid rgba(0,212,255,.3); color: var(--accent);
+    }
+    .chat-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 8px; }
+    .chat-chip {
+      font-size: 0.65rem; padding: 4px 10px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--muted);
+      cursor: pointer; font-family: var(--font-mono);
+    }
+    .chat-chip:hover { border-color: var(--accent2); color: var(--accent2); }
+    .chat-input-row {
+      display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border);
+    }
+    .chat-input-row input {
+      flex: 1; padding: 10px 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      font-family: var(--font-head); font-size: 0.8rem; outline: none;
+    }
+    .chat-input-row input:focus { border-color: var(--accent); }
+    .chat-send {
+      padding: 10px 14px; border-radius: 10px; border: none; cursor: pointer;
+      background: var(--accent); color: #000; font-weight: 700; font-size: 0.8rem;
+    }
+
+    @media (max-width: 768px) {
+      .app-body { flex-direction: column; height: auto; }
+      .sidebar { width: 100%; }
+      .map-wrapper { height: 55vh; }
+      .chat-panel { right: 12px; bottom: 80px; height: 50vh; }
+      .chat-fab { right: 12px; bottom: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN (first page) ═══════════════ -->
+<div id="login-view">
+  <div class="login-card">
+    <div class="login-logo">🗺 Smart<span>RouteX</span></div>
+    <p class="login-sub">Sign in to plan routes and manage trips.<br>Format: <code style="color:var(--accent)">email|password</code> in users.txt</p>
+
+    <div class="login-tabs">
+      <button type="button" class="login-tab active" id="tab-login" onclick="setAuthTab('login')">Login</button>
+      <button type="button" class="login-tab" id="tab-signup" onclick="setAuthTab('signup')">Sign Up</button>
+    </div>
+
+    <form id="auth-form" onsubmit="handleAuth(event)">
+      <div class="field">
+        <label for="auth-email">Email</label>
+        <input type="email" id="auth-email" placeholder="you@example.com" required autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" placeholder="••••••" required autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn btn-primary" id="auth-submit">Login</button>
+    </form>
+    <p class="auth-msg" id="auth-msg"></p>
+    <p class="login-sub" style="margin-top:16px;margin-bottom:0">Or use the chatbot (bottom-right) — type <code style="color:var(--accent)">help</code></p>
+  </div>
+</div>
+
+<!-- ═══════════════ TRAVEL SYSTEM (after login) ═══════════════ -->
+<div id="app-view" class="hidden">
+  <header>
+    <div class="logo">🗺 Smart<span>RouteX</span></div>
+    <div class="user-bar">
+      <span class="user-email" id="header-email"></span>
+      <button type="button" class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-label">Route Planner</div>
+        <div class="input-group">
+          <div class="input-dot src"></div>
+          <input type="text" id="source" placeholder="From: e.g. delhi" />
+        </div>
+        <div class="input-connector"></div>
+        <div class="input-group">
+          <div class="input-dot dest"></div>
+          <input type="text" id="destination" placeholder="To: e.g. dehradun" />
+        </div>
+        <button type="button" class="btn btn-primary" onclick="findRoute()">Find Route (C++)</button>
+        <button type="button" class="btn btn-secondary" onclick="saveCurrentTrip()">Save Trip to trips.txt</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Algorithm</div>
+        <div class="algo-grid">
+          <div class="algo-btn selected" data-algo="dijkstra" onclick="selectAlgo(this,'dijkstra')">Dijkstra</div>
+          <div class="algo-btn" data-algo="bfs" onclick="selectAlgo(this,'bfs')">BFS</div>
+          <div class="algo-btn" data-algo="dfs" onclick="selectAlgo(this,'dfs')">DFS</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Route Stats</div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-val" id="stat-dist">—</div><div class="stat-lbl">Distance (km)</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-cost">—</div><div class="stat-lbl">Cost (Rs)</div></div>
+        </div>
+        <p id="path-names" style="margin-top:10px;font-size:0.75rem;color:var(--muted);line-height:1.5;"></p>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Your Trips (trips.txt)</div>
+        <div class="trip-list" id="trip-list"><p style="color:var(--muted)">Loading…</p></div>
+        <button type="button" class="btn btn-secondary" style="margin-top:8px" onclick="loadTrips()">Refresh Trips</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Activity Log</div>
+        <div class="log-area" id="log"></div>
+      </div>
+    </aside>
+
+    <div class="map-wrapper">
+      <div id="map-overlay"><div class="spinner"></div></div>
+      <div id="map"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CHATBOT (login + app) ═══════════════ -->
+<button type="button" class="chat-fab" id="chat-fab" onclick="toggleChat()" title="SmartRouteX Chatbot">💬</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-head">
+    <div style="flex:1">
+      <h3>SmartRouteX Chatbot</h3>
+      <p id="chat-subtitle">Rules · commands like C++</p>
+      <div class="chat-mode-tabs">
+        <button type="button" class="chat-mode-tab active" id="mode-rules" onclick="setChatMode('rules')">Rules</button>
+        <button type="button" class="chat-mode-tab" id="mode-ai" onclick="setChatMode('ai')">AI</button>
+      </div>
+    </div>
+    <button type="button" class="chat-close" onclick="toggleChat(false)">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-chips" id="chips-rules">
+    <button type="button" class="chat-chip" onclick="sendChatCommand('help')">help</button>
+    <button type="button" class="chat-chip" onclick="sendChatCommand('view trips')">view trips</button>
+    <button type="button" class="chat-chip" onclick="sendChatCommand('find path')">find path</button>
+    <button type="button" class="chat-chip" onclick="sendChatCommand('dijkstra')">dijkstra</button>
+  </div>
+  <div class="chat-chips hidden" id="chips-ai">
+    <button type="button" class="chat-chip" onclick="sendChatCommand('Route from delhi to dehradun')">delhi → dehradun</button>
+    <button type="button" class="chat-chip" onclick="sendChatCommand('Explain dijkstra')">explain dijkstra</button>
+    <button type="button" class="chat-chip" onclick="sendChatCommand('Show my trips')">my trips</button>
+  </div>
+  <form class="chat-input-row" onsubmit="submitChat(event)">
+    <input type="text" id="chat-input" placeholder="Type a command…" autocomplete="off" />
+    <button type="submit" class="chat-send">Send</button>
+  </form>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentUser = sessionStorage.getItem('smartroutex_user') || '';
+let selectedAlgo = 'dijkstra';
+let map, routingControl, cppPolyline;
+let lastRoute = null;
+let chatOpen = false;
+let chatPending = null; // multi-step: find_path | signup | login
+let chatMode = 'rules'; // 'rules' | 'ai'
+let aiChatHistory = [];
+let aiProvider = 'local';
+
+// ── Chatbot ──
+const CHAT_HELP_TEXT =
+`SmartRouteX Chatbot — commands:
+• help
+• signup — create account (email password)
+• login — sign in (email password)
+• add trip — save last route to trips.txt
+• view trips — list your trips
+• find path — plan route (source dest [dijkstra|bfs|dfs])
+• dfs / bfs / dijkstra — explain algorithm
+• logout · exit`;
+
+function toggleChat(force) {
+  chatOpen = force !== undefined ? force : !chatOpen;
+  document.getElementById('chat-panel').classList.toggle('open', chatOpen);
+  if (chatOpen) document.getElementById('chat-input').focus();
+}
+
+function setChatMode(mode) {
+  chatMode = mode;
+  chatPending = null;
+  document.getElementById('mode-rules').classList.toggle('active', mode === 'rules');
+  document.getElementById('mode-ai').classList.toggle('ai-active', mode === 'ai');
+  document.getElementById('mode-ai').classList.toggle('active', mode === 'ai');
+  document.getElementById('chips-rules').classList.toggle('hidden', mode !== 'rules');
+  document.getElementById('chips-ai').classList.toggle('hidden', mode !== 'ai');
+  document.getElementById('chat-subtitle').textContent =
+    mode === 'rules' ? 'Rules · commands like C++' : 'AI · natural language (' + aiProvider + ')';
+  document.getElementById('chat-input').placeholder =
+    mode === 'rules' ? 'Type a command…' : 'Ask anything about routes…';
+  if (mode === 'ai' && !document.getElementById('chat-messages').dataset.aiIntro) {
+    document.getElementById('chat-messages').dataset.aiIntro = '1';
+    chatBotSay('AI mode: ask in plain English, e.g. "Find route from delhi to mumbai using dijkstra". I can run the C++ backend for you.', true);
+  }
+}
+
+function chatBotSay(text, isAi, provider) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg bot' + (isAi ? ' ai' : '');
+  div.textContent = text;
+  if (provider) {
+    const tag = document.createElement('div');
+    tag.className = 'chat-provider';
+    tag.textContent = 'via ' + provider;
+    div.appendChild(tag);
+  }
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function chatTyping(show) {
+  let el = document.getElementById('chat-typing');
+  if (!show) { if (el) el.remove(); return; }
+  if (el) return;
+  const box = document.getElementById('chat-messages');
+  el = document.createElement('div');
+  el.id = 'chat-typing';
+  el.className = 'chat-msg bot typing';
+  el.textContent = 'Thinking…';
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function chatUserSay(text) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg user';
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function sendChatCommand(cmd) {
+  document.getElementById('chat-input').value = cmd;
+  submitChat({ preventDefault: () => {} });
+}
+
+function isLoggedIn() {
+  return !!currentUser && !document.getElementById('app-view').classList.contains('hidden');
+}
+
+async function submitChat(e) {
+  e.preventDefault();
+  const input = document.getElementById('chat-input').value.trim();
+  if (!input) return;
+  document.getElementById('chat-input').value = '';
+  chatUserSay(input);
+  if (chatMode === 'ai') {
+    await processAiChat(input);
+  } else {
+    await processChatCommand(input.toLowerCase());
+  }
+}
+
+async function processAiChat(message) {
+  chatTyping(true);
+  try {
+    const res = await fetch(API + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        history: aiChatHistory,
+        email: currentUser || '',
+        lastRoute,
+      }),
+    });
+    const data = await res.json();
+    chatTyping(false);
+    if (!data.success) {
+      chatBotSay(data.message || 'AI request failed', true);
+      return;
+    }
+    aiProvider = data.provider || 'ai';
+    setChatMode('ai');
+    aiChatHistory.push({ role: 'user', content: message });
+    aiChatHistory.push({ role: 'assistant', content: data.reply });
+    if (aiChatHistory.length > 20) aiChatHistory = aiChatHistory.slice(-20);
+
+    chatBotSay(data.reply, true, data.provider);
+
+    if (data.action && data.actionResult) {
+      await handleAiAction(data.action, data.actionResult);
+    }
+  } catch (err) {
+    chatTyping(false);
+    chatBotSay('AI error: ' + err.message + '\nIs the server running (npm start)?', true);
+  }
+}
+
+async function handleAiAction(action, result) {
+  if (action.type === 'find_path' && result.success) {
+    if (!isLoggedIn()) {
+      chatBotSay('Log in to see the route on the map.', true);
+      return;
+    }
+    const src = result.source || action.source;
+    const dest = result.destination || action.destination;
+    const algo = (result.algorithm || action.algorithm || 'dijkstra').toLowerCase();
+    document.getElementById('source').value = src;
+    document.getElementById('destination').value = dest;
+    selectAlgoByName(algo);
+    lastRoute = {
+      source: src,
+      destination: dest,
+      distance: result.distance,
+      cost: result.cost,
+      path: result.path,
+    };
+    document.getElementById('stat-dist').textContent = result.distance.toFixed(2);
+    document.getElementById('stat-cost').textContent = '₹' + result.cost.toFixed(0);
+    document.getElementById('path-names').textContent =
+      (result.algorithm || algo) + ': ' + (result.path || []).join(' → ');
+    if (map && result.pathCoords) {
+      visualizePath(result.pathCoords);
+      try {
+        const geo = await fetch(API + '/api/coords').then(r => r.json());
+        if (geo.src && geo.dest && routingControl) {
+          map.removeControl(routingControl);
+          routingControl = null;
+        }
+        if (geo.src && geo.dest) {
+          routingControl = L.Routing.control({
+            waypoints: [L.latLng(geo.src[0], geo.src[1]), L.latLng(geo.dest[0], geo.dest[1])],
+            lineOptions: { styles: [{ color: '#00d4ff', weight: 3, opacity: 0.5 }] },
+            createMarker: (i, wp) => L.marker(wp.latLng, { icon: i === 0 ? greenIcon : redIcon }),
+            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+            fitSelectedRoutes: true,
+            show: false,
+          }).addTo(map);
+        }
+      } catch { /* map line optional */ }
+    }
+    chatBotSay('Route plotted on map · ' + result.distance.toFixed(2) + ' km · ₹' + result.cost.toFixed(0), true);
+    log('AI planned route: ' + src + ' → ' + dest, 'ok');
+  }
+
+  if (action.type === 'view_trips' && result.success) {
+    if (!result.trips?.length) {
+      chatBotSay('You have no saved trips yet.', true);
+    } else {
+      const lines = result.trips.map(t =>
+        '• ' + t.source + ' → ' + t.destination + ' (' + t.date + ', ' + t.distance + ' km)'
+      );
+      chatBotSay('Your trips:\n' + lines.join('\n'), true);
+    }
+    if (isLoggedIn()) loadTrips();
+  }
+
+  if (action.type === 'save_trip' && result.success) {
+    chatBotSay('Trip saved to trips.txt.', true);
+    if (isLoggedIn()) loadTrips();
+  }
+
+  if (result && result.success === false && result.message) {
+    chatBotSay('Action failed: ' + result.message, true);
+  }
+}
+
+async function processChatCommand(raw) {
+  const parts = raw.split(/\s+/).filter(Boolean);
+  const cmd = parts[0] === 'find' && parts[1] === 'path' ? 'find path' : parts.join(' ');
+
+  if (chatPending === 'find_path') {
+    const tokens = raw.split(/\s+/);
+    if (tokens.length < 2) {
+      chatBotSay('Need at least source and destination.\nExample: delhi dehradun dijkstra');
+      return;
+    }
+    let algo = selectedAlgo;
+    let destIdx = tokens.length - 1;
+    const last = tokens[tokens.length - 1];
+    if (['dfs', 'bfs', 'dijkstra'].includes(last)) {
+      algo = last;
+      destIdx = tokens.length - 2;
+    }
+    const source = tokens.slice(0, destIdx).join(' ');
+    const dest = tokens[destIdx];
+    chatPending = null;
+    document.getElementById('source').value = source;
+    document.getElementById('destination').value = dest;
+    selectAlgoByName(algo);
+    if (!isLoggedIn()) {
+      chatBotSay('Please log in from the login page first.');
+      return;
+    }
+    chatBotSay('Finding path: ' + source + ' → ' + dest + ' (' + algo + ')…');
+    await findRoute(source, dest, algo);
+    chatBotSay(lastRoute
+      ? 'Done! ' + lastRoute.distance.toFixed(2) + ' km, ₹' + lastRoute.cost.toFixed(0) + '.\nPath: ' + (lastRoute.path || []).join(' → ')
+      : 'Could not find a route.');
+    return;
+  }
+
+  if (chatPending === 'login') {
+    chatPending = null;
+    if (parts.length < 2) {
+      chatBotSay('Usage: email password');
+      return;
+    }
+    const [email, ...rest] = parts;
+    const password = rest.join(' ');
+    await chatDoLogin(email, password);
+    return;
+  }
+
+  if (chatPending === 'signup') {
+    chatPending = null;
+    if (parts.length < 2) {
+      chatBotSay('Usage: email password');
+      return;
+    }
+    const [email, ...rest] = parts;
+    const password = rest.join(' ');
+    await chatDoSignup(email, password);
+    return;
+  }
+
+  if (raw === 'help' || raw === '11') {
+    chatBotSay(CHAT_HELP_TEXT);
+    return;
+  }
+
+  if (raw === 'exit' || raw === 'close') {
+    chatBotSay('Closing chatbot. Click 💬 to reopen.');
+    toggleChat(false);
+    return;
+  }
+
+  if (raw === 'dfs' || raw === 'bfs' || raw === 'dijkstra') {
+    chatBotSay(explainAlgo(raw));
+    if (isLoggedIn()) selectAlgoByName(raw);
+    return;
+  }
+
+  if (raw === 'signup' || raw.startsWith('signup ')) {
+    if (raw === 'signup') {
+      chatPending = 'signup';
+      chatBotSay('Enter: email password');
+      return;
+    }
+    const rest = raw.slice(7).trim().split(/\s+/);
+    await chatDoSignup(rest[0], rest.slice(1).join(' '));
+    return;
+  }
+
+  if (raw === 'login' || raw.startsWith('login ')) {
+    if (raw === 'login') {
+      chatPending = 'login';
+      chatBotSay('Enter: email password');
+      return;
+    }
+    const rest = raw.slice(6).trim().split(/\s+/);
+    await chatDoLogin(rest[0], rest.slice(1).join(' '));
+    return;
+  }
+
+  if (raw === 'logout') {
+    if (!isLoggedIn()) {
+      chatBotSay('No user is currently logged in.');
+      return;
+    }
+    logout();
+    chatBotSay('You have been logged out.');
+    return;
+  }
+
+  if (raw === 'view trips' || raw === '4') {
+    if (!isLoggedIn()) {
+      chatBotSay('Please login first.');
+      return;
+    }
+    chatBotSay('Loading your trips from trips.txt…');
+    await chatShowTrips();
+    return;
+  }
+
+  if (raw === 'add trip' || raw === '3') {
+    if (!isLoggedIn()) {
+      chatBotSay('Please login first.');
+      return;
+    }
+    if (!lastRoute) {
+      chatBotSay('Find a route first (use "find path" or the sidebar), then say "add trip".');
+      return;
+    }
+    await saveCurrentTrip();
+    chatBotSay('Trip saved to trips.txt!');
+    return;
+  }
+
+  if (raw === 'find path' || raw === '5') {
+    if (!isLoggedIn()) {
+      chatBotSay('Please login first.');
+      return;
+    }
+    if (parts.length >= 4) {
+      const algo = ['dfs', 'bfs', 'dijkstra'].includes(parts[parts.length - 1]) ? parts.pop() : selectedAlgo;
+      const dest = parts[parts.length - 1];
+      const source = parts.slice(2, -1).join(' ');
+      document.getElementById('source').value = source;
+      document.getElementById('destination').value = dest;
+      selectAlgoByName(algo);
+      chatBotSay('Finding path…');
+      await findRoute(source, dest, algo);
+      chatBotSay(lastRoute ? 'Route ready on map.' : 'No path found.');
+      return;
+    }
+    chatPending = 'find_path';
+    chatBotSay('Enter source and destination.\nExample: delhi dehradun dijkstra');
+    return;
+  }
+
+  chatBotSay("Sorry, I didn't understand that.\nType 'help' for commands.");
+}
+
+function explainAlgo(name) {
+  if (name === 'dfs') {
+    return 'DFS (Depth First Search) explores one path deeply before backtracking. Use it to traverse possible routes.';
+  }
+  if (name === 'bfs') {
+    return 'BFS (Breadth First Search) explores level by level and finds a path with fewer hops.';
+  }
+  return 'Dijkstra finds the shortest weighted path by distance. Best when km between cities matters.';
+}
+
+function selectAlgoByName(name) {
+  selectedAlgo = name;
+  document.querySelectorAll('.algo-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.algo === name);
+  });
+}
+
+async function chatDoLogin(email, password) {
+  try {
+    const data = await fetch(API + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    }).then(r => r.json());
+    if (data.success) {
+      currentUser = email;
+      sessionStorage.setItem('smartroutex_user', email);
+      enterApp();
+      chatBotSay('Login successful. Welcome, ' + email + '!');
+    } else {
+      chatBotSay('Invalid login credentials.');
+    }
+  } catch (err) {
+    chatBotSay('Server error: ' + err.message);
+  }
+}
+
+async function chatDoSignup(email, password) {
+  try {
+    const data = await fetch(API + '/api/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    }).then(r => r.json());
+    if (data.success) {
+      chatBotSay('Account created! Say "login ' + email + ' ' + password + '" or use the login form.');
+    } else {
+      chatBotSay(data.message || 'Signup failed.');
+    }
+  } catch (err) {
+    chatBotSay('Server error: ' + err.message);
+  }
+}
+
+async function chatShowTrips() {
+  try {
+    const data = await fetch(API + '/api/trips?email=' + encodeURIComponent(currentUser)).then(r => r.json());
+    if (!data.trips?.length) {
+      chatBotSay('You have no saved trips yet.');
+      return;
+    }
+    const lines = data.trips.map(t =>
+      '• ' + t.source + ' → ' + t.destination + '\n  ' + t.date + ' · ' + t.distance + ' km · ₹' + t.cost
+    );
+    chatBotSay('Your trips:\n' + lines.join('\n'));
+    loadTrips();
+  } catch {
+    chatBotSay('Could not read trips.txt.');
+  }
+}
+
+// ── Auth UI ──
+let authMode = 'login';
+
+function setAuthTab(mode) {
+  authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', mode === 'signup');
+  document.getElementById('auth-submit').textContent = mode === 'login' ? 'Login' : 'Create Account';
+  document.getElementById('auth-msg').textContent = '';
+  document.getElementById('auth-msg').className = 'auth-msg';
+}
+
+function showAuthMsg(text, ok) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = text;
+  el.className = 'auth-msg ' + (ok ? 'ok' : 'err');
+}
+
+async function handleAuth(e) {
+  e.preventDefault();
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const btn = document.getElementById('auth-submit');
+  btn.disabled = true;
+
+  const endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
+  try {
+    const res = await fetch(API + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (authMode === 'signup') {
+        showAuthMsg('Account created! Log in now.', true);
+        setAuthTab('login');
+      } else {
+        currentUser = email;
+        sessionStorage.setItem('smartroutex_user', email);
+        enterApp();
+      }
+    } else {
+      showAuthMsg(data.message || 'Authentication failed', false);
+    }
+  } catch (err) {
+    showAuthMsg('Server error: ' + err.message + '. Run: npm start', false);
+  }
+  btn.disabled = false;
+}
+
+function logout() {
+  currentUser = '';
+  sessionStorage.removeItem('smartroutex_user');
+  document.getElementById('app-view').classList.add('hidden');
+  document.getElementById('login-view').classList.remove('hidden');
+  if (map) { map.remove(); map = null; }
+}
+
+function enterApp() {
+  document.getElementById('login-view').classList.add('hidden');
+  document.getElementById('app-view').classList.remove('hidden');
+  document.getElementById('header-email').textContent = currentUser;
+  initMap();
+  loadTrips();
+  log('Logged in as ' + currentUser, 'ok');
+  if (!document.getElementById('chat-messages').dataset.welcomed) {
+    document.getElementById('chat-messages').dataset.welcomed = '1';
+    chatBotSay('Welcome! Type "help" for commands (find path, view trips, add trip, …).');
+  }
+}
+
+// ── Map ──
+function initMap() {
+  if (map) return;
+  map = L.map('map').setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19,
+  }).addTo(map);
+}
+
+const greenIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:16px;height:16px;background:#10b981;border-radius:50%;border:3px solid #fff"></div>',
+  iconSize: [16, 16], iconAnchor: [8, 8],
+});
+const redIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:16px;height:16px;background:#ef4444;border-radius:50%;border:3px solid #fff"></div>',
+  iconSize: [16, 16], iconAnchor: [8, 8],
+});
+
+function log(msg, type = 'info') {
+  const logEl = document.getElementById('log');
+  if (!logEl) return;
+  const ts = new Date().toTimeString().slice(0, 8);
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.innerHTML = '<span class="ts">[' + ts + ']</span> <span class="msg">' + msg + '</span>';
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function showLoading(show) {
+  const el = document.getElementById('map-overlay');
+  if (el) el.classList.toggle('show', show);
+}
+
+function selectAlgo(el, name) {
+  document.querySelectorAll('.algo-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedAlgo = name;
+  log('Algorithm: ' + name.toUpperCase(), 'info');
+}
+
+async function findRoute(srcArg, destArg, algoArg) {
+  const src = (srcArg || document.getElementById('source').value).trim();
+  const dest = (destArg || document.getElementById('destination').value).trim();
+  const algo = algoArg || selectedAlgo;
+  if (!src || !dest) { alert('Enter source and destination'); return; }
+  document.getElementById('source').value = src;
+  document.getElementById('destination').value = dest;
+  selectedAlgo = algo;
+  selectAlgoByName(algo);
+
+  showLoading(true);
+  log('Geocoding via C++ (Nominatim → temp.json, coords.json)…', 'info');
+
+  try {
+    const geo = await fetch(API + '/api/geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: src, destination: dest }),
+    }).then(r => r.json());
+
+    if (!geo.success) throw new Error(geo.message || 'Geocode failed');
+    log('coords.json updated', 'ok');
+
+    log('Running C++ ' + algo + ' on coords.txt graph…', 'info');
+    const pathData = await fetch(API + '/api/path', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: src, destination: dest, algorithm: algo }),
+    }).then(r => r.json());
+
+    if (!pathData.success) throw new Error(pathData.message || 'No path found');
+
+    lastRoute = {
+      source: src,
+      destination: dest,
+      distance: pathData.distance,
+      cost: pathData.cost,
+      path: pathData.path,
+    };
+
+    document.getElementById('stat-dist').textContent = pathData.distance.toFixed(2);
+    document.getElementById('stat-cost').textContent = '₹' + pathData.cost.toFixed(0);
+    document.getElementById('path-names').textContent =
+      pathData.algorithm + ': ' + (pathData.path || []).join(' → ');
+
+    visualizePath(pathData.pathCoords || []);
+
+    const srcC = geo.src;
+    const destC = geo.dest;
+    if (routingControl) { map.removeControl(routingControl); routingControl = null; }
+
+    routingControl = L.Routing.control({
+      waypoints: [L.latLng(srcC[0], srcC[1]), L.latLng(destC[0], destC[1])],
+      lineOptions: { styles: [{ color: '#00d4ff', weight: 3, opacity: 0.5 }] },
+      createMarker: (i, wp) => L.marker(wp.latLng, { icon: i === 0 ? greenIcon : redIcon }),
+      router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+      fitSelectedRoutes: true,
+      show: false,
+    }).addTo(map);
+
+    log('Distance: ' + pathData.distance.toFixed(2) + ' km, Cost: ₹' + pathData.cost.toFixed(0), 'ok');
+  } catch (e) {
+    log(e.message, 'err');
+    alert(e.message);
+  }
+  showLoading(false);
+}
+
+function visualizePath(coords) {
+  if (cppPolyline) { map.removeLayer(cppPolyline); cppPolyline = null; }
+  if (!coords.length) return;
+  const latlngs = coords.map(c => L.latLng(c[0], c[1]));
+  cppPolyline = L.polyline(latlngs, {
+    color: '#7c3aed', weight: 5, opacity: 0.9, dashArray: '8, 6',
+  }).addTo(map);
+  coords.forEach((c, i) => {
+    L.circleMarker([c[0], c[1]], {
+      radius: 6,
+      fillColor: i === 0 ? '#10b981' : i === coords.length - 1 ? '#ef4444' : '#7c3aed',
+      color: '#fff', weight: 1.5, fillOpacity: 1,
+    }).bindTooltip((lastRoute?.path?.[i] || 'Node ' + i)).addTo(map);
+  });
+  map.fitBounds(cppPolyline.getBounds(), { padding: [40, 40] });
+}
+
+async function saveCurrentTrip() {
+  if (!lastRoute) { alert('Find a route first'); return; }
+  const date = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+  try {
+    const data = await fetch(API + '/api/trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: currentUser,
+        source: lastRoute.source,
+        destination: lastRoute.destination,
+        date,
+        distance: lastRoute.distance,
+        cost: lastRoute.cost,
+      }),
+    }).then(r => r.json());
+    if (data.success) {
+      log('Trip saved to trips.txt', 'ok');
+      loadTrips();
+    } else throw new Error(data.message);
+  } catch (e) {
+    log(e.message, 'err');
+  }
+}
+
+async function loadTrips() {
+  const el = document.getElementById('trip-list');
+  try {
+    const data = await fetch(API + '/api/trips?email=' + encodeURIComponent(currentUser)).then(r => r.json());
+    if (!data.trips?.length) {
+      el.innerHTML = '<p style="color:var(--muted)">No trips yet.</p>';
+      return;
+    }
+    el.innerHTML = data.trips.map(t =>
+      '<div class="trip-item"><strong>' + t.source + ' → ' + t.destination + '</strong><br>' +
+      t.date + ' · ' + t.distance + ' km · ₹' + t.cost + '</div>'
+    ).join('');
+  } catch {
+    el.innerHTML = '<p style="color:var(--red)">Could not load trips</p>';
+  }
+}
+
+// ── Startup: login first ──
+if (currentUser) {
+  enterApp();
+} else {
+  setAuthTab('login');
+}
+
+fetch(API + '/api/health').then(r => r.json()).then(h => {
+  if (!h.cli) console.warn('Compile C++: npm run build:cpp');
+  if (h.ai) {
+    aiProvider = h.ai.provider;
+    const sub = document.getElementById('chat-subtitle');
+    if (sub && chatMode === 'ai') sub.textContent = 'AI · ' + h.ai.provider + (h.ai.model ? ' (' + h.ai.model + ')' : '');
+  }
+}).catch(() => {});
+
+chatBotSay('Hi! Use Rules (commands) or AI (natural language).\nRules: type "help". AI: ask "route from delhi to dehradun".');
+</script>
+</body>
+</html>

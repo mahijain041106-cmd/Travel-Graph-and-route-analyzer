@@ -1,0 +1,14 @@
+{
+  "name": "smartroutex",
+  "version": "1.0.0",
+  "description": "SmartRouteX travel system — C++ backend + web frontend",
+  "scripts": {
+    "build:cpp": "g++ -std=c++17 -O2 -o route_cli.exe pathfinder.cpp",
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}

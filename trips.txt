@@ -1,0 +1,7 @@
+tiya@gmail.com|Dehradun|Delhi|10-04-26|230|1000
+m@gmail.com|dehradun|shimla|10-4-23|1943|24321
+m@gmail.com|dehradun|delhi|26/04/26|231.67|2376.87
+
+m@gmail.com|dehradun|goa|26-05-2026|1816.38|18163.8
+
+m@gmail.com|delhi|mumbai|27-05-2026|1193.99|11939.9
